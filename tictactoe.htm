@@ -1,0 +1,331 @@
+<html>
+
+<head>
+    <style>
+        #game {
+            border: 1px solid gray;
+            float: left;
+            position: relative;
+        }
+
+        #game .game-row {
+            display: flex;
+        }
+
+        #game .game-cell {
+            border: 1px solid gray;
+            height: 50px;
+            width: 50px;
+            text-align: center;
+            font-size: 44px;
+        }
+
+        #results {
+            position: absolute;
+            top: 50%;
+            color: red;
+            font-size: 44px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            height: 100%;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 25% 0 0 25%;
+        }
+
+        #menu {
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="menu">
+        <a href="javascript:void(0)" onclick="setGame(3)">3x3</a>
+        <a href="javascript:void(0)" onclick="setGame(4)">4x4</a>
+        <a href="javascript:void(0)" onclick="setGame(5)">5x5</a>
+        <a href="javascript:void(0)" onclick="setGame(6)">6x6</a>
+        <a href="javascript:void(0)" onclick="setGame(7)">7x7</a>
+        <a href="javascript:void(0)" onclick="setGame(8)">8x8</a>
+        <a href="javascript:void(0)" onclick="setGame(9)">9x9</a>
+    </div>
+
+    <div id="game"></div>
+
+    <script>
+        class game {
+            constructor(element, size = 3) {
+                this.cpu = 'X'
+
+                this.human = 'O'
+
+                this.domElement = element
+
+                this.size = size
+
+                this.resetGame();
+            }
+
+            startGame() {
+                let startCpu = Math.floor(Math.random() * 2)
+
+                if (startCpu) {
+                    let nr = Math.ceil(this.size / 2) - 1
+
+                    let index = nr * this.size + nr
+
+                    this.setPin(index, this.cpu)
+                }
+
+                this.turn = this.human
+            }
+
+            changeGameSize(size) {
+                this.size = size;
+
+                this.resetGame()
+            }
+
+            resetGame() {
+                this.gameElements = Array.from(Array(Math.pow(this.size, 2)).keys())
+
+                this.drawGame()
+
+                this.startGame()
+            }
+
+            drawGame() {
+                this.domElement.innerHTML = '';
+
+                for (let i = 0; i < this.size; i++) {
+                    let row = document.createElement('div')
+
+                    row.setAttribute('class', 'game-row')
+
+                    for (let j = 0; j < this.size; j++) {
+                        let col = document.createElement('div')
+
+                        let id = j + i * this.size
+
+                        col.setAttribute('id', `cell-${id}`)
+
+                        col.setAttribute('class', 'game-cell')
+
+                        col.onclick = () => {
+                            this.setPin(id, this.human)
+                        };
+
+                        row.appendChild(col)
+                    }
+
+                    this.domElement.appendChild(row)
+                }
+            }
+
+            setWinner(player) {
+                let div = document.createElement('div')
+
+                let winnerName = player == this.cpu ? 'CPU' : 'You'
+
+                if (player) {
+                    div.innerHTML = `${winnerName} win`;
+                } else {
+                    div.innerHTML = `Draw`;
+                }
+
+                div.setAttribute('id', 'results');
+
+                div.onclick = () => {
+                    this.resetGame()
+                }
+
+                this.domElement.appendChild(div)
+            }
+
+            setPin(index, player) {
+                if (player == this.human && this.turn == this.cpu || isNaN(this.gameElements[index])) {
+                    return
+                }
+
+                this.gameElements[index] = player
+
+                document.querySelector(`#cell-${index}`).innerText = player
+
+                if (
+                    player == this.cpu &&
+                    this.getWinning(this.gameElements, this.cpu)
+                ) {
+                    this.setWinner(this.cpu)
+
+                    return
+                }
+
+                if (
+                    player == this.human &&
+                    this.getWinning(this.gameElements, this.human)
+                ) {
+                    this.setWinner(this.human)
+
+                    return
+                }
+
+                if (this.emptyIndexies(this.gameElements).length == 0) {
+                    this.setWinner(false);
+
+                    return
+                }
+
+                this.turn = (player == this.human) ? this.cpu : this.human
+
+                if (player == this.human) {
+                    let move = this.calculateMove(this.gameElements, this.cpu)
+
+                    this.setPin(move.index, this.cpu)
+                }
+            }
+
+            calculateMove(gameBoard, player, level = 0) {
+                let maxLevel;
+
+                if (this.size > 6) {
+                    maxLevel = 2
+                } else if (this.size == 6) {
+                    maxLevel = 3
+                } else if (this.size > 3) {
+                    maxLevel = 4
+                } else {
+                    maxLevel = 100
+                }
+
+                if (level > maxLevel) {
+                    return { score: 0 };
+                }
+
+                let emptySpots = this.emptyIndexies(gameBoard);
+
+                if (this.getWinning(gameBoard, this.human)) {
+                    return { score: -10 };
+                }
+                else if (this.getWinning(gameBoard, this.cpu)) {
+                    return { score: 10 };
+                }
+                else if (emptySpots.length === 0) {
+                    return { score: 0 };
+                }
+
+                let moves = [];
+
+                for (let i = 0; i < emptySpots.length; i++) {
+                    let move = {};
+                    move.index = gameBoard[emptySpots[i]];
+
+                    gameBoard[emptySpots[i]] = player;
+
+                    if (player == this.cpu) {
+                        let result = this.calculateMove(gameBoard, this.human, level + 1);
+                        move.score = result.score;
+                    }
+                    else {
+                        let result = this.calculateMove(gameBoard, this.cpu, level + 1);
+                        move.score = result.score;
+                    }
+
+                    gameBoard[emptySpots[i]] = move.index;
+
+                    moves.push(move);
+                }
+
+                let bestMove;
+                if (player === this.cpu) {
+                    let bestScore = -10000;
+
+                    for (let i = 0; i < moves.length; i++) {
+                        if (moves[i].score > bestScore) {
+                            bestScore = moves[i].score;
+
+                            bestMove = i;
+                        }
+                    }
+                } else {
+                    let bestScore = 10000;
+                    
+                    for (let i = 0; i < moves.length; i++) {
+                        if (moves[i].score < bestScore) {
+                            bestScore = moves[i].score;
+
+                            bestMove = i;
+                        }
+                    }
+                }
+
+                // if (!level) {
+                //     moves.map(e => console.log(e))
+                // }
+
+                let bestScore = moves[bestMove].score
+                
+                let bestMoves = moves.filter(e => e.score === bestScore)
+
+                let randomIndex = Math.floor(Math.random()*bestMoves.length);
+
+                return bestMoves[randomIndex]
+
+                // return moves[bestMove];
+            }
+
+            emptyIndexies(board) {
+                return board.filter(s => s != "O" && s != "X");
+            }
+
+            getWinning(board, player) {
+                let filterRow = nr => {
+                    return this.gameElements.filter((el, index) => parseInt(index / this.size) == nr && el == player)
+                }
+
+                let filterCol = nr => {
+                    return this.gameElements.filter((el, index) => (index % this.size) == nr && el == player)
+                }
+
+                let filterDiag = () => {
+                    return this.gameElements.filter((el, index) => (index % (this.size + 1)) == 0 && el == player)
+                }
+
+                let filterDiagReverse = () => {
+                    return this.gameElements.filter((el, index, arr) => index && (index % (this.size - 1)) == 0 && index != (arr.length - 1) && el == player)
+                }
+
+                for (let i = 0; i < this.size; i++) {
+                    if (filterRow(i).length == this.size) {
+                        return true;
+                    }
+
+                    if (filterCol(i).length == this.size) {
+                        return true;
+                    }
+                }
+
+                if (filterDiag().length == this.size) {
+                    return true;
+                }
+
+                if (filterDiagReverse().length == this.size) {
+                    return true;
+                }
+
+                return false;
+            }
+
+
+        }
+
+        let g = new game(document.querySelector('#game'), 3);
+
+        function setGame(size) {
+            g.changeGameSize(size)
+        }
+
+    </script>
+</body>
+
+</html>
